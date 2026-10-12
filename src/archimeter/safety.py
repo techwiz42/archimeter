@@ -1,0 +1,198 @@
+"""Secrets denylist, safe file walking and token redaction."""
+from __future__ import annotations
+
+import fnmatch
+import logging
+import os
+import re
+import threading
+from dataclasses import dataclass
+from pathlib import Path
+
+DEFAULT_DENYLIST = [
+    ".env", ".env.*", "*.env", "*.pem", "*.key", "*.p12", "*.pfx", "*.jks", "*.keystore",
+    "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519", "*.kdbx", ".netrc", ".npmrc", ".pypirc",
+    ".git-credentials", "credentials", "credentials.*", "secrets", "secrets.*", "secret.*",
+    "*.sqlite", "*.sqlite3", "*.db", "*.mdb", "*.sql.gz", "*.dump", "db-encrypted*",
+    "**/secrets/**", "**/.ssh/**", "**/.aws/**", "**/.gnupg/**",
+]
+
+VENDORED_DIRS = {"node_modules", "vendor", "vendors", "third_party", "bower_components", "site-packages",
+                 "dist-packages", ".venv", "venv", "env", "__pycache__", ".git", ".tox", ".mypy_cache"}
+
+LANG_BY_EXT = {".py": "python", ".js": "javascript", ".jsx": "javascript", ".mjs": "javascript",
+               ".cjs": "javascript", ".ts": "typescript", ".tsx": "typescript", ".mts": "typescript",
+               ".cts": "typescript"}
+
+
+def _match(path: str, patterns: list[str]) -> bool:
+    name = path.rsplit("/", 1)[-1]
+    for p in patterns:
+        if "/" in p or "**" in p:
+            if fnmatch.fnmatch(path, p) or fnmatch.fnmatch("/" + path, p.replace("**/", "**/")) \
+                    or (p.startswith("**/") and fnmatch.fnmatch(path, p[3:])):
+                return True
+            if p.endswith("/**") and (path + "/").startswith(p[:-2]):
+                return True
+        elif fnmatch.fnmatch(name, p):
+            return True
+    return False
+
+
+def is_secret(relpath: str, extra: list[str] | None = None) -> bool:
+    """True when the path must never be opened. Also true for any path segment named by the denylist."""
+    pats = DEFAULT_DENYLIST + list(extra or [])
+    parts = relpath.split("/")
+    if _match(relpath, pats):
+        return True
+    return any(_match(seg, [p for p in pats if "/" not in p]) for seg in parts)
+
+
+def matches_any(relpath: str, patterns: list[str]) -> bool:
+    return _match(relpath, patterns)
+
+
+@dataclass
+class SourceFile:
+    rel: str
+    abs: Path
+    lang: str
+    size: int
+
+
+@dataclass
+class WalkResult:
+    files: list[SourceFile]
+    skipped: list[dict]
+
+
+def looks_binary(path: Path) -> bool:
+    try:
+        with open(path, "rb") as f:
+            return b"\0" in f.read(4096)
+    except OSError:
+        return True
+
+
+def walk_sources(root: Path, *, max_bytes: int, skip_vendored: bool = True,
+                 extra_deny: list[str] | None = None, exclude: list[str] | None = None,
+                 skip_generated: bool = True) -> WalkResult:
+    """Walk root without following symlinks, returning analyzable source files only.
+
+    Secret-denylisted paths are never opened; they are not even listed in `skipped` by content.
+    """
+    files: list[SourceFile] = []
+    skipped: list[dict] = []
+    root = root.resolve()
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+        reldir = os.path.relpath(dirpath, root)
+        reldir = "" if reldir == "." else reldir.replace(os.sep, "/")
+        keep = []
+        for d in sorted(dirnames):
+            rel = f"{reldir}/{d}" if reldir else d
+            if d == ".git" or (skip_vendored and d in VENDORED_DIRS):
+                continue
+            if is_secret(rel, extra_deny):
+                skipped.append({"path": rel, "reason": "secrets-denylist"})
+                continue
+            if os.path.islink(os.path.join(dirpath, d)):
+                continue
+            keep.append(d)
+        dirnames[:] = keep
+        for fn in sorted(filenames):
+            rel = f"{reldir}/{fn}" if reldir else fn
+            ap = Path(dirpath) / fn
+            lang = LANG_BY_EXT.get(ap.suffix.lower())
+            if lang is None:
+                continue
+            if ap.is_symlink():
+                continue
+            if is_secret(rel, extra_deny):
+                skipped.append({"path": rel, "reason": "secrets-denylist"})
+                continue
+            if exclude and matches_any(rel, exclude):
+                skipped.append({"path": rel, "reason": "excluded"})
+                continue
+            try:
+                size = ap.stat().st_size
+            except OSError:
+                continue
+            if size > max_bytes:
+                skipped.append({"path": rel, "reason": "too-large", "bytes": size})
+                continue
+            if looks_binary(ap):
+                skipped.append({"path": rel, "reason": "binary"})
+                continue
+            if skip_generated and _is_generated_marker(ap):
+                skipped.append({"path": rel, "reason": "generated"})
+                continue
+            files.append(SourceFile(rel, ap, lang, size))
+    return WalkResult(files, skipped)
+
+
+_GEN_RE = re.compile(rb"(@generated|DO NOT EDIT|auto-?generated by|Code generated by)", re.I)
+
+
+def _is_generated_marker(path: Path) -> bool:
+    try:
+        with open(path, "rb") as f:
+            return bool(_GEN_RE.search(f.read(512)))
+    except OSError:
+        return False
+
+
+class Redactor(logging.Filter):
+    """Replaces every registered secret in log records and exception text."""
+    _secrets: set[str] = set()
+    _lock = threading.Lock()
+    _TOKEN_RE = re.compile(r"\b(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})\b")
+
+    @classmethod
+    def register(cls, secret: str | None) -> None:
+        if secret and len(secret) >= 6:
+            with cls._lock:
+                cls._secrets.add(secret)
+
+    @classmethod
+    def clear(cls) -> None:
+        with cls._lock:
+            cls._secrets.clear()
+
+    @classmethod
+    def redact(cls, text: str) -> str:
+        with cls._lock:
+            for s in cls._secrets:
+                text = text.replace(s, "***")
+        text = cls._TOKEN_RE.sub("***", text)
+        text = re.sub(r"(?i)(authorization:\s*(?:basic|bearer|token)\s+)\S+", r"\1***", text)
+        text = re.sub(r"(https?://)[^/@\s]+@", r"\1***@", text)
+        return text
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.msg = self.redact(str(record.getMessage()))
+        record.args = ()
+        return True
+
+
+_FACTORY_INSTALLED = False
+
+
+def install_log_redaction() -> None:
+    """Redact secrets in every log record, from every logger, at record creation (filters on the root logger would not
+    apply to records created by child loggers)."""
+    global _FACTORY_INSTALLED
+    if _FACTORY_INSTALLED:
+        return
+    old = logging.getLogRecordFactory()
+
+    def factory(*args, **kwargs):
+        record = old(*args, **kwargs)
+        try:
+            record.msg = Redactor.redact(record.getMessage())
+            record.args = ()
+        except Exception:
+            record.msg, record.args = "<log message withheld: redaction failed>", ()
+        return record
+
+    logging.setLogRecordFactory(factory)
+    _FACTORY_INSTALLED = True

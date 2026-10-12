@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>archimeter report</title>
+<style>
+:root{
+  color-scheme: light;
+  --surface:#fcfcfb; --surface-2:#f4f3f0; --border:#dcdad4; --grid:#e7e5df;
+  --text:#0b0b0b; --text-2:#52514e; --text-3:#6f6e69;
+  --k-import:#2a78d6; --k-event:#eb6834; --k-change:#1baf7a; --k-service:#eda100;
+  --c-copied:#2a78d6; --c-modified:#eb6834; --c-new:#1baf7a; --c-unattributed:#8f8d86;
+  --seq-0:#e8f1fc; --seq-1:#0b3d80; --warn:#b3261e; --ok:#0b7a3b;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --surface:#1a1a19; --surface-2:#232321; --border:#3a3a37; --grid:#2d2d2a;
+    --text:#f0efec; --text-2:#c3c2b7; --text-3:#9d9c93;
+    --k-import:#3987e5; --k-event:#d95926; --k-change:#199e70; --k-service:#c98500;
+    --c-copied:#3987e5; --c-modified:#d95926; --c-new:#199e70; --c-unattributed:#8f8d86;
+    --seq-0:#14263d; --seq-1:#7fb2f0; --warn:#f2877f; --ok:#6fcf97;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --surface:#1a1a19; --surface-2:#232321; --border:#3a3a37; --grid:#2d2d2a;
+  --text:#f0efec; --text-2:#c3c2b7; --text-3:#9d9c93;
+  --k-import:#3987e5; --k-event:#d95926; --k-change:#199e70; --k-service:#c98500;
+  --c-copied:#3987e5; --c-modified:#d95926; --c-new:#199e70; --c-unattributed:#8f8d86;
+  --seq-0:#14263d; --seq-1:#7fb2f0; --warn:#f2877f; --ok:#6fcf97;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--surface);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:20px 16px 8px;max-width:1200px;margin:0 auto}
+h1{font-size:20px;margin:0 0 4px} h2{font-size:16px;margin:0 0 4px} h3{font-size:13px;margin:16px 0 6px;color:var(--text-2);text-transform:uppercase;letter-spacing:.04em}
+.sub{color:var(--text-2);font-size:13px}
+nav{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--border);z-index:5}
+nav div{max-width:1200px;margin:0 auto;padding:6px 16px;display:flex;gap:14px;flex-wrap:wrap;font-size:13px}
+nav a{color:var(--text-2);text-decoration:none} nav a:hover{color:var(--text)}
+main{max-width:1200px;margin:0 auto;padding:0 16px 48px}
+section{padding:22px 0;border-bottom:1px solid var(--border)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:12px 0}
+.tile{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.tile .v{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums} .tile .l{color:var(--text-2);font-size:12px}
+.tile .d{color:var(--text-3);font-size:11px;margin-top:2px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:5px 8px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+th{color:var(--text-2);font-weight:600;cursor:default;white-space:nowrap} th.sortable{cursor:pointer} th.sortable:hover{color:var(--text)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.flag{display:inline-block;border:1px solid var(--warn);color:var(--warn);border-radius:10px;padding:0 7px;font-size:11px;margin-right:4px}
+.flag.info{border-color:var(--text-3);color:var(--text-2)}
+.controls{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:8px 0 10px}
+select,input[type=search]{background:var(--surface-2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font:inherit}
+label{color:var(--text-2);font-size:13px;display:inline-flex;gap:5px;align-items:center}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-2);margin:6px 0}
+.chart{position:relative;width:100%}
+svg text{fill:var(--text-2);font:11px system-ui,sans-serif}
+svg .axis path,svg .axis line{stroke:var(--border)}
+#tip{position:fixed;pointer-events:none;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 9px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.18);display:none;z-index:20;max-width:340px}
+.bar{display:flex;height:18px;border-radius:4px;overflow:hidden;gap:2px;background:var(--surface)}
+.bar span{display:block;height:100%}
+.note{color:var(--text-2);font-size:13px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin:8px 0}
+.crumbs button{background:none;border:none;color:var(--k-import);cursor:pointer;font:inherit;padding:0}
+details{margin:8px 0} summary{cursor:pointer;color:var(--text-2)}
+.scroll{max-height:380px;overflow:auto}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px} @media(max-width:800px){.two{grid-template-columns:1fr}}
+code{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">archimeter</h1>
+  <div class="sub" id="meta"></div>
+</header>
+<nav><div id="nav"></div></nav>
+<main>
+  <section id="summary"><h2>Summary</h2><div class="tiles" id="tiles"></div><div id="summary-extra"></div>
+    <h3>Top 10 hotspots</h3><div id="hot-top"></div></section>
+  <section id="provenance" hidden><h2>Provenance</h2><div class="sub">Where the complexity of this generated application comes from.</div><div id="prov"></div></section>
+  <section id="services" hidden><h2>Services</h2><div class="sub">Containers and the dependencies between them.</div><div id="svc"></div></section>
+  <section id="dsm"><h2>Design structure matrix</h2>
+    <div class="sub">Row depends on column. Rows and columns are ordered by clustering so tightly connected groups form blocks on the diagonal.</div>
+    <div class="controls"><label>Kind <select id="dsm-kind"></select></label><label>Level <select id="dsm-level"></select></label><span class="sub" id="dsm-info"></span></div>
+    <div class="chart"><canvas id="dsm-canvas"></canvas></div>
+    <details><summary>Show as table (strongest 100 edges)</summary><div class="scroll" id="dsm-table"></div></details></section>
+  <section id="graph"><h2>Dependency graph</h2>
+    <div class="sub">Node size = lines of code, node colour = instability (light = stable, dark = unstable). Click a service to drill into its packages, then modules.</div>
+    <div class="controls"><span class="crumbs" id="crumbs"></span><span id="kind-toggles"></span></div>
+    <div class="legend" id="graph-legend"></div>
+    <div class="chart"><svg id="graph-svg" height="560" width="100%" role="img" aria-label="Force-directed dependency graph"></svg></div></section>
+  <section id="cycles"><h2>Dependency cycles</h2><div class="sub">Groups of modules that all depend on each other, directly or indirectly. The direct two-way dependencies below are the concrete edges to untangle first.</div><div id="cycles-body"></div></section>
+  <section id="martin"><h2>Main sequence: abstractness vs instability</h2>
+    <div class="sub">Modules near the line A + I = 1 balance abstraction and stability. Far below: rigid and concrete (zone of pain); far above: abstract but unused (zone of uselessness). Hollow markers have no class definitions (A plotted as 0).</div>
+    <div class="chart"><svg id="martin-svg" height="420" width="100%" role="img" aria-label="Abstractness versus instability scatter"></svg></div>
+    <details><summary>Show as table</summary><div class="scroll" id="martin-table"></div></details></section>
+  <section id="hotspots"><h2>Hotspots: churn vs complexity</h2><div id="hot-body"></div></section>
+  <section id="events"><h2>Event inventory</h2><div id="ev-body"></div></section>
+  <section id="hidden"><h2>Hidden coupling</h2><div class="sub">Modules that change together although nothing in the code links them.</div><div id="hidden-body"></div></section>
+  <section id="notes"><h2>Notes and uncertainty</h2><div id="notes-body"></div></section>
+</main>
+<div id="tip"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script id="data" type="application/json">__DATA__</script>
+<script>
+(function(){
+"use strict";
+const D = JSON.parse(document.getElementById("data").textContent);
+const $ = (s, r=document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = (v, d=1) => v == null ? "n/a" : (typeof v === "number" ? (Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : +v.toFixed(d)) : v);
+const pct = v => v == null ? "n/a" : (v*100).toFixed(1) + "%";
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const KINDS = ["import","event","change","service"];
+const tip = $("#tip");
+function showTip(ev, html){ tip.innerHTML = html; tip.style.display = "block";
+  const w = tip.offsetWidth, h = tip.offsetHeight; let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - 14; if (y + h > innerHeight - 8) y = ev.clientY - h - 14;
+  tip.style.left = x + "px"; tip.style.top = y + "px"; }
+const hideTip = () => tip.style.display = "none";
+const sectionsUsed = [];
+function sec(id, label){ sectionsUsed.push([id,label]); }
+
+// ---------------------------------------------------------------- header / summary
+const meta = D.meta;
+$("#title").textContent = "archimeter: " + (meta.name || "target");
+$("#meta").textContent = [meta.kind, meta.commit && ("commit " + meta.commit.slice(0,10)), meta.digest && ("image " + meta.digest.slice(0,19)), "archimeter " + meta.tool_version, meta.mode].filter(Boolean).join(" · ");
+const M = D.levels.module, S = D.levels.service;
+const tiles = [];
+const pcm = M.propagation_cost;
+tiles.push(["Propagation cost", pct(pcm.combined), "combined, modules"]);
+for (const k of ["import","event","service"]) if (pcm[k] != null) tiles.push(["  " + k, pct(pcm[k]), "propagation cost"]);
+if (S.nodes.length > 1) tiles.push(["Service propagation", pct(S.propagation_cost.combined), "combined, services"]);
+tiles.push(["Cycles", (M.cycles.combined||[]).length + (S.nodes.length>1 ? " / " + (S.cycles.combined||[]).length : ""), S.nodes.length>1 ? "modules / services" : "strongly connected groups"]);
+tiles.push(["Hidden couplings", D.hidden_coupling == null ? "n/a" : D.hidden_coupling.length, D.hidden_coupling == null ? "no git history" : "co-change, no dependency"]);
+const evs = D.events?.summary;
+if (evs) tiles.push(["Events", evs.events, evs.no_subscriber + " no subscriber · " + evs.never_published + " never published · " + evs.unresolved_sites + " unresolved"]);
+tiles.push(["Code", D.totals.loc.toLocaleString() + " LOC", D.totals.files + " files · " + D.totals.functions + " functions"]);
+tiles.push(["Complexity", fmt(D.totals.mean_complexity,2) + " mean", D.totals.functions_over_threshold + " functions over threshold, max " + D.totals.max_complexity]);
+$("#tiles").innerHTML = tiles.map(t => `<div class="tile"><div class="l">${esc(t[0])}</div><div class="v">${esc(t[1])}</div><div class="d">${esc(t[2])}</div></div>`).join("");
+if (D.findings?.length){
+  $("#summary-extra").innerHTML = D.findings.filter(f=>f.severity!=="info").map(f=>`<div class="note"><span class="flag">${esc(f.severity)}</span><b>${esc(f.type)}</b>: ${esc(f.message)}</div>`).join("");
+}
+function hotspotTable(rows, cols){
+  return `<table><thead><tr>${cols.map(c=>`<th class="${c.n?'n':''}">${c.h}</th>`).join("")}</tr></thead><tbody>` +
+    rows.map(r=>`<tr>${cols.map(c=>`<td class="${c.n?'n':''}">${c.f(r)}</td>`).join("")}</tr>`).join("") + "</tbody></table>";
+}
+if (D.hotspots?.length){
+  $("#hot-top").innerHTML = hotspotTable(D.hotspots.slice(0,10), [
+    {h:"File", f:r=>`<code>${esc(r.file)}</code>`}, {h:"Module", f:r=>esc(r.module)}, {h:"Churn", n:1, f:r=>r.churn},
+    {h:"Complexity", n:1, f:r=>r.complexity}, {h:"Score", n:1, f:r=>r.score.toLocaleString()}]);
+} else if (D.provenance?.top_complexity_files?.length){
+  $("#hot-top").innerHTML = '<div class="sub">No change history for a generated application: ranked by complexity only.</div>' + hotspotTable(D.provenance.top_complexity_files.slice(0,10), [
+    {h:"File", f:r=>`<code>${esc(r.file)}</code>`}, {h:"Provenance", f:r=>esc(r.class + (r.module ? " · " + r.module : ""))}, {h:"Complexity", n:1, f:r=>r.complexity}]);
+} else $("#hot-top").innerHTML = '<div class="sub">No hotspots: this target has no change history.</div>';
+sec("summary","Summary");
+
+// ---------------------------------------------------------------- provenance
+const P = D.provenance;
+if (P && P.source !== "none" && P.summary){
+  $("#provenance").hidden = false; sec("provenance","Provenance");
+  const cls = [["copied","Copied unchanged"],["modified","Modified from framework"],["new","Generated glue"],["unattributed","Unattributed"]];
+  const bar = (key) => { const tot = d3.sum(cls, c=>P.summary[c[0]][key]) || 1;
+    return `<div class="bar" role="img" aria-label="${key} by provenance">${cls.map(c=>`<span style="width:${P.summary[c[0]][key]/tot*100}%;background:var(--c-${c[0]})" title="${c[1]}: ${pct(P.summary[c[0]][key]/tot)}"></span>`).join("")}</div>`; };
+  $("#prov").innerHTML = `
+   <div class="legend">${cls.map(c=>`<span><span class="sw" style="background:var(--c-${c[0]})"></span> ${c[1]}</span>`).join("")}</div>
+   <h3>Share of cyclomatic complexity</h3>${bar("complexity")}
+   <h3>Share of lines of code</h3>${bar("loc")}
+   <table style="margin-top:10px"><thead><tr><th>Class</th><th class="n">Files</th><th class="n">LOC</th><th class="n">Complexity</th><th class="n">Share of complexity</th></tr></thead><tbody>
+   ${cls.map(c=>`<tr><td><span class="sw" style="background:var(--c-${c[0]})"></span> ${c[1]}</td><td class="n">${P.summary[c[0]].files}</td><td class="n">${P.summary[c[0]].loc.toLocaleString()}</td><td class="n">${P.summary[c[0]].complexity.toLocaleString()}</td><td class="n">${pct(P.summary[c[0]].share_of_complexity)}</td></tr>`).join("")}</tbody></table>
+   <div class="two"><div><h3>By framework module</h3><div class="scroll"><table><thead><tr><th>Module</th><th class="n">Copied</th><th class="n">Modified</th><th class="n">LOC</th><th class="n">Complexity</th><th class="n">Share</th></tr></thead><tbody>
+   ${Object.entries(P.by_framework_module).map(([m,v])=>`<tr><td>${esc(m)}</td><td class="n">${v.copied_files}</td><td class="n">${v.modified_files}</td><td class="n">${v.loc.toLocaleString()}</td><td class="n">${v.complexity.toLocaleString()}</td><td class="n">${pct(v.share_of_complexity)}</td></tr>`).join("")}</tbody></table></div></div>
+   <div><h3>Share of dependency reach (propagation)</h3><div class="scroll"><table><thead><tr><th>Source</th><th class="n">Files</th><th class="n">Share</th></tr></thead><tbody>
+   ${Object.entries(P.reachability_attribution).map(([m,v])=>`<tr><td>${esc(m)}</td><td class="n">${v.files}</td><td class="n">${pct(v.share_of_reachability)}</td></tr>`).join("")}</tbody></table></div></div></div>
+   <h3>Dangling events in this application</h3>${P.dangling_events.length ? `<div class="scroll"><table><thead><tr><th>Event</th><th>Flag</th><th>Where</th></tr></thead><tbody>${P.dangling_events.map(e=>`<tr><td><code>${esc(e.event)}</code></td><td>${e.flags.map(f=>`<span class="flag">${esc(f)}</span>`).join("")}</td><td>${e.sites.slice(0,3).map(s=>`<code>${esc(s.file)}:${s.line}</code> (${esc(s.provenance||"")})`).join("<br>")}${e.sites.length>3?"<br>+"+(e.sites.length-3)+" more":""}</td></tr>`).join("")}</tbody></table></div>` : '<div class="sub">None.</div>'}
+   <h3>Dependency closure</h3><div class="sub">${P.dependency_closure.selected ? `Selected: ${esc(P.dependency_closure.selected.join(", "))}.` : "No selection recorded; modules that no other included module requires are shown as likely roots."}
+   Likely roots: ${esc(P.dependency_closure.roots_not_required_by_other_modules.join(", ") || "none")}. Pulled in transitively: ${esc(P.dependency_closure.pulled_in_transitively.join(", ") || "none")}.</div>
+   ${P.unattributed.length ? `<div class="note">${P.unattributed.length} file(s) could not be attributed (ambiguous match). First: <code>${esc(P.unattributed[0])}</code></div>` : ""}`;
+} else if (P && P.source === "none"){
+  $("#provenance").hidden = false; sec("provenance","Provenance");
+  $("#prov").innerHTML = `<div class="note">${esc((P.notes||[]).join(" "))}</div>`;
+}
+
+// ---------------------------------------------------------------- services
+const SG = D.service_graph;
+if (SG && Object.keys(SG.services).length){
+  $("#services").hidden = false; sec("services","Services");
+  const rows = Object.values(SG.services);
+  $("#svc").innerHTML = `<div class="chart"><svg id="svc-svg" height="320" width="100%" role="img" aria-label="Service graph"></svg></div>
+   <div class="scroll"><table><thead><tr><th>Service</th><th>Kind</th><th>Image / base</th><th>Ports</th><th class="n">Env vars (names)</th></tr></thead><tbody>
+   ${rows.map(s=>`<tr><td>${esc(s.name)}</td><td>${esc(s.kind)}</td><td><code>${esc(s.image || s.base_image || "")}</code></td><td>${esc((s.ports||[]).join(", "))}</td><td class="n">${(s.env_names||[]).length}</td></tr>`).join("")}</tbody></table></div>
+   ${D.findings?.length ? `<h3>Shared infrastructure</h3>${D.findings.map(f=>`<div class="note"><span class="flag ${f.severity==="info"?"info":""}">${esc(f.severity)}</span><b>${esc(f.type)}</b>: ${esc(f.message)}<br>Services: ${esc(f.services.join(", "))}</div>`).join("")}` : ""}`;
+  drawServiceGraph();
+}
+function drawServiceGraph(){
+  const svg = d3.select("#svc-svg"); const W = $("#svc-svg").clientWidth || 800, H = 320;
+  const nodes = Object.values(SG.services).map(s=>({id:s.name, kind:s.kind}));
+  const links = SG.edges.map(e=>({source:e.from, target:e.to, ev:e.evidence.join("; ")}));
+  const ev = (D.levels.service.dsm.event||[]).map(e=>({source:e[0].replace("service:",""), target:e[1].replace("service:",""), ev:"event"}));
+  const all = links.concat(ev.filter(e=>nodes.some(n=>n.id===e.source)&&nodes.some(n=>n.id===e.target)));
+  svg.append("defs").append("marker").attr("id","arr").attr("viewBox","0 -4 8 8").attr("refX",18).attr("markerWidth",6).attr("markerHeight",6).attr("orient","auto").append("path").attr("d","M0,-4L8,0L0,4").attr("fill",css("--text-3"));
+  const link = svg.append("g").selectAll("line").data(all).join("line").attr("stroke", d=>d.ev==="event"?css("--k-event"):css("--k-service")).attr("stroke-width",1.6).attr("marker-end","url(#arr)")
+     .on("mousemove",(e,d)=>showTip(e,esc(d.source.id||d.source)+" → "+esc(d.target.id||d.target)+"<br>"+esc(d.ev))).on("mouseleave",hideTip);
+  const node = svg.append("g").selectAll("g").data(nodes).join("g");
+  node.append("circle").attr("r",11).attr("fill",d=>d.kind==="app"?css("--k-import"):css("--text-3")).attr("stroke",css("--surface")).attr("stroke-width",2);
+  node.append("text").attr("dy",-15).attr("text-anchor","middle").text(d=>d.id.length>26?d.id.slice(0,24)+"…":d.id);
+  const sim = d3.forceSimulation(nodes).force("link",d3.forceLink(all).id(d=>d.id).distance(120)).force("charge",d3.forceManyBody().strength(-380)).force("center",d3.forceCenter(W/2,H/2)).stop();
+  for (let i=0;i<250;i++) sim.tick();
+  nodes.forEach(n=>{n.x=Math.max(40,Math.min(W-40,n.x));n.y=Math.max(30,Math.min(H-20,n.y));});
+  link.attr("x1",d=>d.source.x).attr("y1",d=>d.source.y).attr("x2",d=>d.target.x).attr("y2",d=>d.target.y);
+  node.attr("transform",d=>`translate(${d.x},${d.y})`);
+}
+
+// ---------------------------------------------------------------- DSM
+const dsmKinds = ["combined","import","event","change","service"].filter(k => (M.dsm[k]||[]).length || (S.dsm[k]||[]).length || k==="combined");
+$("#dsm-kind").innerHTML = dsmKinds.map(k=>`<option>${k}</option>`).join("");
+const levels = S.nodes.length > 1 ? ["module","service"] : ["module"];
+$("#dsm-level").innerHTML = levels.map(k=>`<option>${k}</option>`).join("");
+function drawDSM(){
+  const kind = $("#dsm-kind").value, level = $("#dsm-level").value, L = D.levels[level];
+  const order = L.order, n = order.length, idx = new Map(order.map((m,i)=>[m,i]));
+  const cv = $("#dsm-canvas"), W = Math.min($("#dsm").clientWidth - 2, 1100);
+  const labelPad = n <= 70 ? 170 : 10, cell = Math.max(2, Math.min(18, Math.floor((W - labelPad) / Math.max(n,1))));
+  const size = labelPad + cell*n + 4, H = labelPad + cell*n + 4, dpr = window.devicePixelRatio || 1;
+  cv.width = size*dpr; cv.height = H*dpr; cv.style.width = size+"px"; cv.style.height = H+"px";
+  const g = cv.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,size,H);
+  const edges = (L.dsm[kind]||[]); const maxW = d3.max(edges, e=>e[2]) || 1;
+  const col = d3.scaleSequentialLog([1, Math.max(2,maxW)], d3.interpolateRgb(css("--seq-0"), css("--seq-1"))).clamp(true);
+  const x0 = labelPad, y0 = labelPad;
+  g.strokeStyle = css("--grid"); g.lineWidth = 1;
+  for (let i=0;i<=n;i++){ if (cell>=6 || i%5===0){ g.beginPath(); g.moveTo(x0+i*cell,y0); g.lineTo(x0+i*cell,y0+n*cell); g.moveTo(x0,y0+i*cell); g.lineTo(x0+n*cell,y0+i*cell); g.stroke(); } }
+  g.fillStyle = css("--surface-2"); for (let i=0;i<n;i++) g.fillRect(x0+i*cell+1, y0+i*cell+1, cell-1, cell-1);
+  const cells = new Map();
+  for (const [a,b,w] of edges){ const r = idx.get(a), c = idx.get(b); if (r==null||c==null) continue;
+    g.fillStyle = col(Math.max(1,w)); g.fillRect(x0+c*cell+1, y0+r*cell+1, cell-1, cell-1); cells.set(r*n+c, [a,b,w]); }
+  if (n <= 70){ g.fillStyle = css("--text-2"); g.font = "11px system-ui,sans-serif"; g.textBaseline = "middle";
+    order.forEach((m,i)=>{ const name = m.replace(/^(module|service):/,""); const t = name.length>26?"…"+name.slice(-25):name;
+      g.textAlign = "right"; g.fillText(t, x0-5, y0+i*cell+cell/2);
+      g.save(); g.translate(x0+i*cell+cell/2, y0-5); g.rotate(-Math.PI/2); g.textAlign = "left"; g.fillText(t,0,0); g.restore(); }); }
+  $("#dsm-info").textContent = `${n} ${level}s · ${edges.length} ${kind} edges` + (kind==="change" ? " (symmetric)" : "");
+  cv.onmousemove = ev => { const r = cv.getBoundingClientRect(); const c = Math.floor((ev.clientX-r.left-x0)/cell), rr = Math.floor((ev.clientY-r.top-y0)/cell);
+    if (c<0||rr<0||c>=n||rr>=n){ hideTip(); return; } const hit = cells.get(rr*n+c); const nm = i => order[i].replace(/^(module|service):/,"");
+    showTip(ev, `<b>${esc(nm(rr))}</b> depends on <b>${esc(nm(c))}</b><br>${hit ? kind+" weight "+fmt(hit[2],0) : "no "+kind+" dependency"}`); };
+  cv.onmouseleave = hideTip;
+  const top = edges.slice().sort((a,b)=>b[2]-a[2]).slice(0,100);
+  $("#dsm-table").innerHTML = top.length ? `<table><thead><tr><th>From (depends)</th><th>To</th><th class="n">Weight</th></tr></thead><tbody>${top.map(e=>`<tr><td>${esc(e[0].replace(/^(module|service):/,""))}</td><td>${esc(e[1].replace(/^(module|service):/,""))}</td><td class="n">${fmt(e[2],0)}</td></tr>`).join("")}</tbody></table>` : '<div class="sub">No edges of this kind.</div>';
+}
+$("#dsm-kind").onchange = $("#dsm-level").onchange = drawDSM; drawDSM(); sec("dsm","DSM");
+
+// ---------------------------------------------------------------- dependency graph with drill-down
+const kindColor = k => css("--k-"+k);
+const shown = new Set(["import","event","service"]);
+$("#kind-toggles").innerHTML = KINDS.filter(k=>(M.dsm[k]||[]).length || (S.dsm[k]||[]).length).map(k=>`<label><input type="checkbox" data-k="${k}" ${shown.has(k)?"checked":""}><span class="sw" style="background:var(--k-${k})"></span>${k}</label>`).join(" ");
+$("#graph-legend").innerHTML = KINDS.map(k=>`<span><span class="sw" style="background:var(--k-${k})"></span> ${k} dependency</span>`).join("") +
+  `<span>instability: <span class="sw" style="background:var(--seq-0);border:1px solid var(--border)"></span> stable → <span class="sw" style="background:var(--seq-1)"></span> unstable</span>`;
+let focus = {level:"auto", service:null, pkg:null};
+const parents = M.parents || {};
+const multiService = S.nodes.length > 1;
+function nodeAt(m, level){ const p = parents[m] || {}; if (level==="module") return m; if (level==="package") return p.package || m; return p.service || p.package || m; }
+function drawGraph(){
+  const svg = d3.select("#graph-svg"); svg.selectAll("*").remove();
+  const W = $("#graph-svg").clientWidth || 900, H = 560;
+  let level = focus.pkg ? "module" : focus.service ? "package" : (multiService ? "service" : "package");
+  let mods = M.nodes.filter(m => (!focus.service || (parents[m]||{}).service === focus.service) && (!focus.pkg || (parents[m]||{}).package === focus.pkg));
+  const modSet = new Set(mods);
+  const label = id => id.replace(/^(module|package|service):/,"");
+  const agg = new Map(); const mm = D.levels.module.node_metrics;
+  const links = new Map();
+  if (level === "service"){
+    for (const id of S.nodes){ const v = S.node_metrics[id] || {}; agg.set(id, {id, loc:v.loc||0, files:v.files||0, mods:mods.filter(m=>(parents[m]||{}).service===id)}); }
+    for (const k of shown) for (const [a,b,w] of (S.dsm[k]||[])){ if (a===b || !agg.has(a) || !agg.has(b)) continue; links.set(a+"\u0000"+b+"\u0000"+k, w); }
+  } else {
+    for (const m of mods){ const id = nodeAt(m, level); const a = agg.get(id) || {id, loc:0, files:0, mods:[]};
+      a.loc += mm[m]?.loc||0; a.files += mm[m]?.files||0; a.mods.push(m); agg.set(id,a); }
+    for (const k of shown){ for (const [a,b,w] of (M.dsm[k]||[])){ if (!modSet.has(a)||!modSet.has(b)) continue; const s = nodeAt(a,level), t = nodeAt(b,level); if (s===t) continue;
+        const key = s+"\u0000"+t+"\u0000"+k; links.set(key, (links.get(key)||0)+w); } }
+  }
+  const ls = [...links].map(([key,w])=>{ const [s,t,k] = key.split("\u0000"); return {source:s,target:t,kind:k,w}; });
+  const ce = new Map(), ca = new Map();
+  for (const l of ls){ if (l.kind==="change") continue; ce.set(l.source,(ce.get(l.source)||0)+1); ca.set(l.target,(ca.get(l.target)||0)+1); }
+  const nodes = [...agg.values()].map(a=>({...a, ce:ce.get(a.id)||0, ca:ca.get(a.id)||0}));
+  nodes.forEach(n=>n.inst = (n.ce+n.ca) ? n.ce/(n.ce+n.ca) : null);
+  const rs = d3.scaleSqrt().domain([0, d3.max(nodes,n=>n.loc)||1]).range([7, 34]);
+  const cs = d3.scaleLinear().domain([0,1]).range([css("--seq-0"), css("--seq-1")]).interpolate(d3.interpolateRgb);
+  svg.append("defs").append("marker").attr("id","garr").attr("viewBox","0 -4 8 8").attr("refX",8).attr("markerWidth",5).attr("markerHeight",5).attr("orient","auto").append("path").attr("d","M0,-4L8,0L0,4").attr("fill",css("--text-3"));
+  const link = svg.append("g").selectAll("line").data(ls).join("line").attr("stroke",d=>kindColor(d.kind)).attr("stroke-opacity",.7).attr("stroke-width",d=>Math.min(5,1+Math.log2(1+d.w)*.6))
+    .on("mousemove",(e,d)=>showTip(e,`${esc(label(d.source.id||d.source))} → ${esc(label(d.target.id||d.target))}<br>${d.kind} · weight ${fmt(d.w,0)}`)).on("mouseleave",hideTip);
+  const node = svg.append("g").selectAll("g").data(nodes).join("g").style("cursor", n => level!=="module" && n.mods.length ? "pointer":"default");
+  node.append("circle").attr("r",d=>rs(d.loc)).attr("fill",d=>d.inst==null?css("--surface-2"):cs(d.inst)).attr("stroke",css("--surface")).attr("stroke-width",2)
+    .on("mousemove",(e,d)=>showTip(e,`<b>${esc(label(d.id))}</b><br>${d.loc.toLocaleString()} LOC · ${d.files} files<br>instability ${d.inst==null?"n/a":d.inst.toFixed(2)} (Ca ${d.ca}, Ce ${d.ce})${level!=="module"?"<br><i>click to drill down</i>":""}`)).on("mouseleave",hideTip)
+    .on("click",(e,d)=>{ if (level==="service"){ focus = {service:d.id,pkg:null}; } else if (level==="package"){ focus = {service:focus.service,pkg:d.id}; } else return; drawGraph(); });
+  node.append("text").attr("dy",d=>-rs(d.loc)-3).attr("text-anchor","middle").text(d=>{const t=label(d.id);return t.length>22?"…"+t.slice(-21):t;}).style("pointer-events","none");
+  const sim = d3.forceSimulation(nodes).force("link",d3.forceLink(ls).id(d=>d.id).distance(nodes.length<12?190:90).strength(.25)).force("charge",d3.forceManyBody().strength(nodes.length<12?-1400:-240))
+    .force("collide",d3.forceCollide(d=>rs(d.loc)+8)).force("x",d3.forceX(W/2).strength(.06)).force("y",d3.forceY(H/2).strength(.08)).stop();
+  for (let i=0;i<Math.min(400, 120+nodes.length*3);i++) sim.tick();
+  const clampx = x => Math.max(30, Math.min(W-30, x)), clampy = y => Math.max(30, Math.min(H-20, y));
+  const place = () => { node.attr("transform",d=>`translate(${d.x=clampx(d.x)},${d.y=clampy(d.y)})`);
+    link.each(function(d){ const dx=d.target.x-d.source.x, dy=d.target.y-d.source.y, len=Math.hypot(dx,dy)||1, r=rs(d.target.loc)+2;
+      d3.select(this).attr("x1",d.source.x).attr("y1",d.source.y).attr("x2",d.target.x-dx/len*r).attr("y2",d.target.y-dy/len*r).attr("marker-end","url(#garr)"); }); };
+  place();
+  node.call(d3.drag().on("start",(e,d)=>{d.fx=d.x;d.fy=d.y;}).on("drag",(e,d)=>{d.x=d.fx=e.x;d.y=d.fy=e.y;place();}).on("end",(e,d)=>{d.fx=d.fy=null;}));
+  const crumbs = []; if (multiService || focus.service) crumbs.push(`<button data-go="root">${multiService?"services":"packages"}</button>`);
+  if (focus.service) crumbs.push(multiService ? `<button data-go="svc">${esc(label(focus.service))}</button>` : "");
+  if (focus.pkg) crumbs.push(`<span>${esc(label(focus.pkg))}</span>`);
+  $("#crumbs").innerHTML = (crumbs.filter(Boolean).join(" › ") || `<span class="sub">${level}s</span>`) + (nodes.length ? "" : ' <span class="sub">(nothing to show)</span>');
+  $("#crumbs").querySelectorAll("button").forEach(b=>b.onclick=()=>{ focus = b.dataset.go==="svc" ? {service:focus.service,pkg:null} : {service:null,pkg:null}; drawGraph(); });
+}
+$("#kind-toggles").onchange = e => { const k = e.target.dataset.k; if (e.target.checked) shown.add(k); else shown.delete(k); drawGraph(); };
+drawGraph(); sec("graph","Graph");
+
+// ---------------------------------------------------------------- cycles
+(function(){
+  const cyc = M.cycles.combined || [], mu = M.mutual_dependencies || [], nm = x => x.replace(/^module:/,"");
+  sec("cycles","Cycles");
+  $("#cycles-body").innerHTML = cyc.length ? cyc.map((c,i)=>`<div class="note"><b>Cycle ${i+1}: ${c.length} modules</b><br>${esc(c.slice(0,24).map(nm).join(", "))}${c.length>24?" … +"+(c.length-24)+" more":""}</div>`).join("") +
+    (mu.length ? `<h3>Direct two-way dependencies (${mu.length})</h3><div class="scroll"><table><thead><tr><th>Module A</th><th>Module B</th><th class="n">A → B</th><th class="n">B → A</th></tr></thead><tbody>${mu.slice(0,200).map(m=>`<tr><td>${esc(nm(m.a))}</td><td>${esc(nm(m.b))}</td><td class="n">${m.weight_a_to_b}</td><td class="n">${m.weight_b_to_a}</td></tr>`).join("")}</tbody></table></div>` : '<div class="sub">The cycle is made of longer chains: no module pair depends on each other directly.</div>') :
+    '<div class="note">No dependency cycles among modules.</div>';
+})();
+
+// ---------------------------------------------------------------- Martin scatter
+(function(){
+  const nm = M.node_metrics; const pts = M.nodes.map(m=>{ const v = nm[m]; if (!v || v.instability==null || !(v.loc>0)) return null;
+    const hollow = v.abstractness==null; const A = hollow ? 0 : v.abstractness; return {id:m.replace(/^module:/,""), I:v.instability, A, D:Math.abs(A+v.instability-1), hollow, loc:v.loc, Ca:v.Ca, Ce:v.Ce}; }).filter(Boolean);
+  const svg = d3.select("#martin-svg"); const W = $("#martin-svg").clientWidth || 800, H = 420, m = {l:48,r:16,t:12,b:40};
+  const x = d3.scaleLinear([0,1],[m.l,W-m.r]), y = d3.scaleLinear([0,1],[H-m.b,m.t]);
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-m.b})`).call(d3.axisBottom(x).ticks(5)); svg.append("g").attr("class","axis").attr("transform",`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5));
+  svg.append("text").attr("x",(m.l+W-m.r)/2).attr("y",H-6).attr("text-anchor","middle").text("Instability I = Ce / (Ca + Ce)");
+  svg.append("text").attr("transform",`translate(12,${(m.t+H-m.b)/2}) rotate(-90)`).attr("text-anchor","middle").text("Abstractness A");
+  svg.append("line").attr("x1",x(0)).attr("y1",y(1)).attr("x2",x(1)).attr("y2",y(0)).attr("stroke",css("--text-3")).attr("stroke-dasharray","5 4").attr("stroke-width",1.5);
+  svg.append("text").attr("x",x(.5)+8).attr("y",y(.5)-8).text("main sequence A + I = 1");
+  const r = d3.scaleSqrt([0, d3.max(pts,p=>p.loc)||1],[3,14]);
+  svg.append("g").selectAll("circle").data(pts).join("circle").attr("cx",p=>x(p.I)).attr("cy",p=>y(p.A)).attr("r",p=>r(p.loc))
+    .attr("fill",p=>p.hollow?"none":css("--k-import")).attr("fill-opacity",.75).attr("stroke",p=>p.hollow?css("--k-import"):css("--surface")).attr("stroke-width",p=>p.hollow?1.5:2)
+    .on("mousemove",(e,p)=>showTip(e,`<b>${esc(p.id)}</b><br>I ${p.I.toFixed(2)} · A ${p.hollow?"0 (no classes)":p.A.toFixed(2)}<br>distance D ${p.D.toFixed(2)}<br>${p.loc.toLocaleString()} LOC · Ca ${p.Ca} · Ce ${p.Ce}`)).on("mouseleave",hideTip);
+  const lab = pts.slice().sort((a,b)=>b.D*Math.sqrt(b.loc)-a.D*Math.sqrt(a.loc)).slice(0,6);
+  svg.append("g").selectAll("text").data(lab).join("text").attr("x",p=>x(p.I)+r(p.loc)+3).attr("y",p=>y(p.A)+4).text(p=>p.id.length>24?"…"+p.id.slice(-23):p.id);
+  $("#martin-table").innerHTML = `<table><thead><tr><th>Module</th><th class="n">I</th><th class="n">A</th><th class="n">D</th><th class="n">LOC</th></tr></thead><tbody>${pts.sort((a,b)=>b.D-a.D).map(p=>`<tr><td>${esc(p.id)}</td><td class="n">${p.I.toFixed(2)}</td><td class="n">${p.hollow?"–":p.A.toFixed(2)}</td><td class="n">${p.D.toFixed(2)}</td><td class="n">${p.loc.toLocaleString()}</td></tr>`).join("")}</tbody></table>`;
+  if (!pts.length) $("#martin").insertAdjacentHTML("beforeend",'<div class="note">No module has both dependencies and code to plot.</div>');
+  sec("martin","Main sequence");
+})();
+
+// ---------------------------------------------------------------- hotspots scatter
+(function(){
+  const H0 = D.hotspots; const body = $("#hot-body");
+  if (!H0 || !H0.length){ body.innerHTML = '<div class="note">No change history is available for this target (generated applications have no history of their own; pass <code>--framework</code> to see change metrics of the framework modules they include).</div>' +
+    (D.provenance?.framework_change_metrics ? `<h3>Framework modules included: commits in window</h3><table><thead><tr><th>Module</th><th class="n">Commits</th><th class="n">Top author share</th></tr></thead><tbody>${Object.entries(D.provenance.framework_change_metrics.modules).map(([m,v])=>`<tr><td>${esc(m)}</td><td class="n">${v.commits}</td><td class="n">${pct(v.top_author_share)}</td></tr>`).join("")}</tbody></table>` : ""); sec("hotspots","Hotspots"); return; }
+  body.innerHTML = '<div class="sub">Files that change often and are complex: the likeliest sources of defects and the best refactoring targets.</div><div class="chart"><svg id="hot-svg" height="420" width="100%" role="img" aria-label="Churn versus complexity scatter"></svg></div><details><summary>Show as table</summary><div class="scroll" id="hot-table"></div></details>';
+  const svg = d3.select("#hot-svg"); const W = $("#hot-svg").clientWidth || 800, H = 420, m = {l:52,r:16,t:12,b:40};
+  const x = d3.scaleLinear([0,d3.max(H0,d=>d.churn)*1.08],[m.l,W-m.r]), y = d3.scaleLinear([0,d3.max(H0,d=>d.complexity)*1.08],[H-m.b,m.t]);
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-m.b})`).call(d3.axisBottom(x).ticks(6)); svg.append("g").attr("class","axis").attr("transform",`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(6));
+  svg.append("text").attr("x",(m.l+W-m.r)/2).attr("y",H-6).attr("text-anchor","middle").text("Churn (commits in window)");
+  svg.append("text").attr("transform",`translate(12,${(m.t+H-m.b)/2}) rotate(-90)`).attr("text-anchor","middle").text("Complexity (sum of cyclomatic)");
+  svg.append("g").selectAll("circle").data(H0).join("circle").attr("cx",d=>x(d.churn)).attr("cy",d=>y(d.complexity)).attr("r",5).attr("fill",css("--k-event")).attr("fill-opacity",.8).attr("stroke",css("--surface")).attr("stroke-width",2)
+    .on("mousemove",(e,d)=>showTip(e,`<b>${esc(d.file)}</b><br>churn ${d.churn} · complexity ${d.complexity}<br>score ${d.score.toLocaleString()}`)).on("mouseleave",hideTip);
+  svg.append("g").selectAll("text").data(H0.slice(0,8)).join("text").attr("x",d=>x(d.churn)+8).attr("y",d=>y(d.complexity)+4).text(d=>d.file.split("/").slice(-2).join("/"));
+  $("#hot-table").innerHTML = hotspotTable(H0.slice(0,50), [{h:"File",f:r=>`<code>${esc(r.file)}</code>`},{h:"Module",f:r=>esc(r.module)},{h:"Churn",n:1,f:r=>r.churn},{h:"Complexity",n:1,f:r=>r.complexity},{h:"Score",n:1,f:r=>r.score.toLocaleString()}]);
+  sec("hotspots","Hotspots");
+})();
+
+// ---------------------------------------------------------------- events
+(function(){
+  const E = D.events; const body = $("#ev-body");
+  if (!E){ body.innerHTML = '<div class="note">No event patterns were configured. Enable presets (<code>[events] presets = ["redis"]</code>) or add custom patterns in archimeter.toml; <code>archimeter init</code> suggests them.</div>'; sec("events","Events"); return; }
+  let sortKey = "name", asc = true, flagsOnly = false, q = "";
+  body.innerHTML = `<div class="sub">${E.summary.events} events · ${E.summary.no_subscriber} published with no subscriber · ${E.summary.never_published} subscribed but never published · ${E.summary.unresolved_sites} unresolved names (never guessed)</div>
+   <div class="controls"><input type="search" id="ev-q" placeholder="filter events" aria-label="filter events"><label><input type="checkbox" id="ev-flag"> flagged only</label></div>
+   <div class="scroll" style="max-height:480px"><table id="ev-t"><thead><tr>
+   <th class="sortable" data-k="name">Event</th><th class="sortable" data-k="mech">Mechanism</th><th class="sortable n" data-k="pubs">Publishers</th><th class="sortable n" data-k="subs">Subscribers</th><th class="sortable" data-k="flags">Flags</th></tr></thead><tbody></tbody></table></div>
+   <details><summary>Unresolved event names (${E.unresolved.length})</summary><div class="scroll"><table><thead><tr><th>Role</th><th>Where</th><th>Expression</th><th>Why</th></tr></thead><tbody>
+   ${E.unresolved.slice(0,500).map(u=>`<tr><td>${esc(u.role)}</td><td><code>${esc(u.file)}:${u.line}</code></td><td><code>${esc(u.expression)}</code></td><td>${esc(u.reason)}</td></tr>`).join("")}</tbody></table></div></details>`;
+  const rowsOf = () => E.inventory.map(e=>({name:e.name, mech:e.mechanisms.join(", "), pubs:e.publishers.length, subs:e.subscribers.length, flags:e.flags.join(","), e}))
+     .filter(r=>(!flagsOnly || r.flags) && (!q || r.name.toLowerCase().includes(q)))
+     .sort((a,b)=>{ const x=a[sortKey], y=b[sortKey]; return (typeof x==="number" ? x-y : String(x).localeCompare(String(y))) * (asc?1:-1); });
+  const draw = () => { $("#ev-t tbody").innerHTML = rowsOf().slice(0,1500).map(r=>`<tr><td><code>${esc(r.name)}</code></td><td>${esc(r.mech)}</td><td class="n" title="${esc(r.e.publishers.slice(0,6).map(s=>s.module).join(", "))}">${r.pubs}</td><td class="n" title="${esc(r.e.subscribers.slice(0,6).map(s=>s.module).join(", "))}">${r.subs}</td><td>${r.e.flags.map(f=>`<span class="flag">${esc(f)}</span>`).join("")}</td></tr>`).join(""); };
+  body.querySelectorAll("th.sortable").forEach(th=>th.onclick=()=>{ if (sortKey===th.dataset.k) asc=!asc; else {sortKey=th.dataset.k; asc=true;} draw(); });
+  $("#ev-q").oninput = e => { q = e.target.value.toLowerCase(); draw(); }; $("#ev-flag").onchange = e => { flagsOnly = e.target.checked; draw(); };
+  draw(); sec("events","Events");
+})();
+
+// ---------------------------------------------------------------- hidden coupling
+(function(){
+  const h = D.hidden_coupling; const body = $("#hidden-body");
+  if (h == null){ body.innerHTML = '<div class="note">No change history for this target.</div>'; return; }
+  sec("hidden","Hidden coupling");
+  if (D.hidden_coupling_source) body.insertAdjacentHTML("beforebegin", '<div class="note">This generated application has no history of its own: pairs come from the framework\'s history, restricted to the modules the application includes.</div>');
+  body.innerHTML = h.length ? `<div class="scroll"><table><thead><tr><th>Module A</th><th>Module B</th><th class="n">Shared commits</th><th class="n">P(B | A)</th><th class="n">P(A | B)</th></tr></thead><tbody>${h.slice(0,200).map(r=>`<tr><td>${esc(r.a)}</td><td>${esc(r.b)}</td><td class="n">${r.support}</td><td class="n">${pct(r.confidence_a_to_b)}</td><td class="n">${pct(r.confidence_b_to_a)}</td></tr>`).join("")}</tbody></table></div>` : '<div class="note">None found at the configured thresholds.</div>';
+})();
+
+// ---------------------------------------------------------------- notes
+(function(){
+  const n = []; const N = D.notes;
+  if (N.parse_errors) n.push(`${N.parse_errors} file(s) had parse problems (see metrics.json parse_errors).`);
+  if (N.skipped) n.push(`${N.skipped} file(s) were skipped (secrets denylist, size, binary or excluded).`);
+  (N.messages||[]).slice(0,20).forEach(m=>n.push(m));
+  const U = D.uncertainty ? Object.entries(D.uncertainty) : [];
+  let html = n.map(x=>`<div class="note">${esc(x)}</div>`).join("");
+  for (const [svc,u] of U){ html += `<div class="note"><b>${esc(svc)}</b>: application code identified by <b>${esc(u.strategy)}</b> at ${esc(u.app_roots.join(", "))}${u.uncertain?' <span class="flag">uncertain</span>':""}. Not analyzed: ${u.not_analyzed.os_files} OS files, ${u.not_analyzed.third_party_files} third-party files. ${esc((u.reasons||[]).join(" "))}${u.excluded_candidates?.length ? " Excluded candidates: "+esc(u.excluded_candidates.map(c=>c.path+" ("+c.source_files+" files)").join(", ")) : ""}</div>`; }
+  if (D.dependency_inventory) for (const [svc,inv] of Object.entries(D.dependency_inventory)) html += `<details><summary>${esc(svc)}: ${inv.length} third-party packages (inventory, not analyzed)</summary><div class="scroll"><table><thead><tr><th>Ecosystem</th><th>Package</th><th>Version</th></tr></thead><tbody>${inv.map(p=>`<tr><td>${esc(p.ecosystem)}</td><td>${esc(p.name)}</td><td>${esc(p.version||"")}</td></tr>`).join("")}</tbody></table></div></details>`;
+  $("#notes-body").innerHTML = html || '<div class="sub">Nothing to report.</div>'; sec("notes","Notes");
+})();
+
+$("#nav").innerHTML = sectionsUsed.map(([id,l])=>`<a href="#${id}">${l}</a>`).join("");
+})();
+</script>
+</body>
+</html>

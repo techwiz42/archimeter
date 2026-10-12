@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>archimeter comparison</title>
+<style>
+:root{color-scheme:light;--surface:#fcfcfb;--surface-2:#f4f3f0;--border:#dcdad4;--text:#0b0b0b;--text-2:#52514e;--text-3:#6f6e69;--s1:#2a78d6;--s2:#eb6834;--warn:#b3261e}
+@media (prefers-color-scheme: dark){:root:where(:not([data-theme="light"])){color-scheme:dark;--surface:#1a1a19;--surface-2:#232321;--border:#3a3a37;--text:#f0efec;--text-2:#c3c2b7;--text-3:#9d9c93;--s1:#3987e5;--s2:#d95926;--warn:#f2877f}}
+:root[data-theme="dark"]{color-scheme:dark;--surface:#1a1a19;--surface-2:#232321;--border:#3a3a37;--text:#f0efec;--text-2:#c3c2b7;--text-3:#9d9c93;--s1:#3987e5;--s2:#d95926;--warn:#f2877f}
+*{box-sizing:border-box}body{margin:0;background:var(--surface);color:var(--text);font:14px/1.45 system-ui,sans-serif}
+main{max-width:1200px;margin:0 auto;padding:16px 16px 48px}h1{font-size:20px;margin:8px 0}h2{font-size:16px;margin:26px 0 4px}.sub{color:var(--text-2);font-size:13px}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:5px 8px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}th{color:var(--text-2)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}.flag{border:1px solid var(--warn);color:var(--warn);border-radius:10px;padding:0 7px;font-size:11px;margin-right:4px}
+.pill{border-radius:10px;padding:1px 8px;font-size:12px;background:var(--surface-2);border:1px solid var(--border)}
+.scroll{overflow:auto;max-height:640px} svg text{fill:var(--text-2);font:11px system-ui,sans-serif} svg .axis path,svg .axis line{stroke:var(--border)}
+#tip{position:fixed;pointer-events:none;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 9px;font-size:12px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.18);z-index:9;max-width:340px}
+.note{background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin:8px 0;font-size:13px;color:var(--text-2)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--text-2);margin:6px 0}.sw{display:inline-block;width:10px;height:10px;border-radius:2px}
+details{margin:8px 0}summary{cursor:pointer;color:var(--text-2)}
+</style></head><body><main>
+<h1>Comparison of generated applications</h1><div class="sub" id="sub"></div>
+<h2>Headline metrics, side by side</h2><div style="overflow:auto"><table id="head"></table></div>
+<h2>Most and least complex</h2><div id="rank"></div>
+<h2>Marginal complexity per module</h2>
+<div class="sub">Counterfactual cost of each module: the share of the application's dependency matrix that is reachable only because the module is present (what is lost when it is removed), averaged over the applications that include it. Bars show that contribution in percentage points of propagation cost; hover for coupling, LOC and per-application values.</div>
+<div class="legend"><span><span class="sw" style="background:var(--s1)"></span> adds propagation cost</span><span><span class="sw" style="background:var(--s2)"></span> in a dependency cycle in every app that includes it</span></div>
+<div id="chart"></div>
+<details><summary>Show as table</summary><div class="scroll"><table id="marg"></table></div></details>
+<h2>Modules that consistently worsen cycles or dangling events</h2><div id="consistent"></div>
+<h2>Notes</h2><div id="notes"></div>
+</main><div id="tip"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script id="data" type="application/json">__DATA__</script>
+<script>
+(function(){
+"use strict";
+const C = JSON.parse(document.getElementById("data").textContent);
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pct = v => v == null ? "n/a" : (v*100).toFixed(1) + "%";
+const tip = $("#tip"); const showTip=(e,h)=>{tip.innerHTML=h;tip.style.display="block";tip.style.left=Math.min(e.clientX+14,innerWidth-360)+"px";tip.style.top=(e.clientY+14)+"px";}; const hideTip=()=>tip.style.display="none";
+const apps = C.applications; $("#sub").textContent = apps.length + " applications · archimeter " + C.tool.version;
+const rows = [["Files","files"],["Lines of code","loc"],["Functions","functions"],["Modules","modules"],["Services","services"],["Mean complexity","mean_complexity"],["Functions over threshold","functions_over_threshold"],
+ ["Propagation cost (modules)","propagation_cost_module",pct],["Dependent module pairs (reach)","reachable_pairs_module"],["Propagation cost (services)","propagation_cost_service",pct],["Cycles (modules)","cycles_module"],["Cycles (services)","cycles_service"],
+ ["Events","events"],["Dangling events","dangling_events"],["Unresolved event sites","unresolved_event_sites"],["Shared-database couplings","shared_database_couplings"],
+ ["Generated glue, share of complexity","glue_share_of_complexity",pct],["Copied unchanged, share","copied_share_of_complexity",pct],["Modified, share","modified_share_of_complexity",pct]];
+$("#head").innerHTML = `<thead><tr><th></th>${apps.map(a=>`<th class="n">${esc(a.name)}</th>`).join("")}</tr></thead><tbody>` +
+  rows.map(([l,k,f])=>`<tr><td>${l}</td>${apps.map(a=>`<td class="n">${(f||(v=>v==null?"n/a":typeof v==="number"?v.toLocaleString():v))(a.headline[k])}</td>`).join("")}</tr>`).join("") + "</tbody>";
+$("#rank").innerHTML = `<div>Most complex: <b>${esc(C.most_complex)}</b> · least complex: <b>${esc(C.least_complex)}</b></div><div class="sub">${esc(C.ranking.method)}: ${C.ranking.metrics.map(esc).join(", ")}. Mean ranks: ${Object.entries(C.ranking.mean_rank).map(([n,v])=>esc(n)+" "+v).join(" · ")}</div>`;
+const M = C.marginal.filter(m=>m.propagation_cost_contribution.mean!==0 || m.loc.mean>0).slice(0,40);
+const W = Math.min(1100, document.body.clientWidth-32), rowH = 20, m = {l:230,r:40,t:10,b:30}, H = m.t+m.b+M.length*rowH;
+const svg = d3.select("#chart").append("svg").attr("width",W).attr("height",H).attr("role","img").attr("aria-label","Marginal propagation cost per module");
+const maxV = d3.max(M,d=>d.propagation_cost_contribution.mean)||0.001, minV = Math.min(0, d3.min(M,d=>d.propagation_cost_contribution.mean)||0);
+const x = d3.scaleLinear([minV,maxV],[m.l,W-m.r]), y = d3.scaleBand(M.map(d=>d.module),[m.t,H-m.b]).padding(.28);
+svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-m.b})`).call(d3.axisBottom(x).ticks(5).tickFormat(v=>(v*100).toFixed(1)+" pp"));
+svg.append("g").selectAll("rect").data(M).join("rect").attr("x",d=>x(Math.min(0,d.propagation_cost_contribution.mean))).attr("y",d=>y(d.module)).attr("height",y.bandwidth())
+ .attr("width",d=>Math.max(1,Math.abs(x(d.propagation_cost_contribution.mean)-x(0)))).attr("rx",3).attr("fill",d=>d.consistently_in_cycles?"var(--s2)":"var(--s1)")
+ .on("mousemove",(e,d)=>showTip(e,`<b>${esc(d.module)}</b><br>in ${d.included_in} of ${d.of} applications<br>propagation cost ${(d.propagation_cost_contribution.mean*100).toFixed(2)} pp<br>coupling ${d.coupling.mean} edges · ${d.loc.mean} LOC<br>${Object.entries(d.propagation_cost_contribution.per_app).map(([a,v])=>esc(a)+": "+(v*100).toFixed(2)+" pp").join("<br>")}`)).on("mouseleave",hideTip);
+svg.append("g").selectAll("text").data(M).join("text").attr("x",m.l-6).attr("y",d=>y(d.module)+y.bandwidth()/2+4).attr("text-anchor","end").text(d=>d.module.length>34?"…"+d.module.slice(-33):d.module);
+$("#marg").innerHTML = `<thead><tr><th>Module</th><th class="n">In apps</th><th class="n">Propagation cost</th><th class="n">Coupling</th><th class="n">LOC</th><th>Comparison estimate</th></tr></thead><tbody>${C.marginal.map(r=>`<tr><td>${esc(r.module)}</td><td class="n">${r.included_in}/${r.of}</td><td class="n">${(r.propagation_cost_contribution.mean*100).toFixed(2)} pp</td><td class="n">${r.coupling.mean}</td><td class="n">${r.loc.mean}</td><td>${r.comparison_estimate.note?esc(r.comparison_estimate.note):esc(r.comparison_estimate.confidence)}</td></tr>`).join("")}</tbody>`;
+$("#consistent").innerHTML = (C.consistently_in_cycles.length||C.consistently_dangling.length) ?
+  `<div>In a cycle in every application that includes them: ${C.consistently_in_cycles.map(x=>`<span class="pill">${esc(x)}</span>`).join(" ")||"none"}</div><div style="margin-top:6px">With dangling events in every application that includes them: ${C.consistently_dangling.map(x=>`<span class="pill">${esc(x)}</span>`).join(" ")||"none"}</div>` : '<div class="note">None: a module needs to appear in two or more compared applications before it can be called consistent.</div>';
+$("#notes").innerHTML = C.notes.map(n=>`<div class="note">${esc(n)}</div>`).join("");
+})();
+</script></body></html>

@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "archimeter"
+version = "0.1.0"
+description = "Static measurement of structural complexity: imports, events and change coupling, for source projects and generated containerized applications."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+  "typer>=0.12",
+  "networkx>=3.2",
+  "scipy>=1.11",
+  "numpy>=1.26",
+  "radon>=6.0",
+  "lizard>=1.17",
+  "complexipy>=1.2",
+  "tree-sitter>=0.23",
+  "tree-sitter-javascript>=0.23",
+  "tree-sitter-typescript>=0.23",
+  "httpx>=0.27",
+  "keyring>=25",
+  "PyYAML>=6",
+  "tomli-w>=1.0",
+  "jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "respx>=0.21"]
+
+[project.scripts]
+archimeter = "archimeter.cli:app"
+
+[project.entry-points."archimeter.extractors"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/archimeter"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
